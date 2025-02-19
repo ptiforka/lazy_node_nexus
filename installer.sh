@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 #####################################
@@ -27,9 +27,9 @@ APT_OPTIONS=(
 #####################################
 # Install Required Packages         #
 #####################################
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y screen unzip
-sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential pkg-config libssl-dev git-all 
-#build-essential pkg-config libssl-dev git-all protobuf-compiler cargo screen unzip
+sudo apt-get update -q
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y screen unzip expect
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config libssl-dev git-all
 
 #####################################
 # Install Rust Non-Interactively    #
@@ -40,9 +40,6 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
-
-# Update Rust to the latest stable
-#rustup update
 
 #####################################
 # Reconfigure Swap (16G)            #
@@ -57,8 +54,7 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 
 #####################################
-# Download and Modify Nexus Installer
-# to Auto-Accept Beta Terms          #
+# Download & Make Nexus Installer   #
 #####################################
 curl -o nexus_installer.sh https://cli.nexus.xyz/
 chmod +x nexus_installer.sh
@@ -67,10 +63,9 @@ chmod +x nexus_installer.sh
 sed -i 's/read -p.*Do you agree.*/REPLY="Y"/' nexus_installer.sh
 
 #####################################
-# Remove Old Protobuf & Install
-# Specific Protoc Version (v25.2)   #
+# Remove Old Protobuf & Install v25.2
 #####################################
-sudo DEBIAN_FRONTEND=noninteractive  apt-get remove "${APT_OPTIONS[@]}" protobuf-compiler
+sudo DEBIAN_FRONTEND=noninteractive apt-get remove -y protobuf-compiler || true
 curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v25.2/protoc-25.2-linux-x86_64.zip
 unzip -o protoc-25.2-linux-x86_64.zip -d "$HOME/.local"
 export PATH="$HOME/.local/bin:$PATH"
@@ -83,8 +78,43 @@ rustup target add riscv32i-unknown-none-elf
 rustup component add rust-src
 
 #####################################
-# Run Nexus Installer Non-Interactively
-# - First prompt: "2" (start earning)
-# - Second prompt: node ID
+# Create an Expect script on the fly
 #####################################
-echo -e "2\n${NEXUS_NODE_ID}\n" | ./nexus_installer.sh
+cat << 'EOF' > auto_nexus.exp
+#!/usr/bin/expect -f
+
+# We pass the Node ID as the first argument to the script
+set nexus_node_id [lindex $argv 0]
+
+# Run the Nexus installer
+spawn ./nexus_installer.sh
+
+# The script might show multiple prompts, so we handle them in a loop or with a block:
+expect {
+    # 1) It might ask you to press Enter for something:
+    "Press Enter to continue" {
+        send "\r"
+        exp_continue
+    }
+    # 2) The main prompt: "[1] Enter '1' to start proving..."
+    "to start earning NEX" {
+        # We want to enter "2"
+        send "2\r"
+        exp_continue
+    }
+    # 3) Another possible prompt: "Enter your node ID"
+    "node ID" {
+        send "$nexus_node_id\r"
+        exp_continue
+    }
+    # If no more prompts, we can exit
+    eof
+}
+EOF
+
+chmod +x auto_nexus.exp
+
+#####################################
+# Run the Expect script
+#####################################
+./auto_nexus.exp "$NEXUS_NODE_ID"
