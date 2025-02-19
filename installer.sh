@@ -83,31 +83,39 @@ rustup component add rust-src
 cat << 'EOF' > auto_nexus.exp
 #!/usr/bin/expect -f
 
+# Turn on debugging (optional). Comment out if too noisy:
+# exp_internal 1
+
+# Disable any timeout so we wait indefinitely
+set timeout -1
+
 # We pass the Node ID as the first argument to the script
 set nexus_node_id [lindex $argv 0]
 
 # Run the Nexus installer
 spawn ./nexus_installer.sh
 
-# The script might show multiple prompts, so we handle them in a loop or with a block:
+# Keep matching until the script finishes
 expect {
-    # 1) It might ask you to press Enter for something:
-    "Press Enter to continue" {
+    # Example: If the script prints "Press Enter to continue"
+    -re {Press\s+Enter\s+to\s+continue} {
         send "\r"
         exp_continue
     }
-    # 2) The main prompt: "[1] Enter '1' to start proving..."
-    "to start earning NEX" {
-        # We want to enter "2"
+
+    # Example: If the script says "Type 2 to start earning" or "start earning NEX"
+    -re {start\s+earning.*} {
         send "2\r"
         exp_continue
     }
-    # 3) Another possible prompt: "Enter your node ID"
-    "node ID" {
+
+    # If the script prompts for "Enter your node ID" or "node ID:"
+    -re {node\s+ID} {
         send "$nexus_node_id\r"
         exp_continue
     }
-    # If no more prompts, we can exit
+
+    # If we hit end-of-file (no more data), we're done
     eof
 }
 EOF
