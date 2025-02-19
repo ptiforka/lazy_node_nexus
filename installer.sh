@@ -11,24 +11,25 @@ NEXUS_NODE_ID=$(cat nexus_node_id.txt)
 #####################################
 export DEBIAN_FRONTEND=noninteractive
 
-# Force dpkg to automatically accept new config files ONLY if no local modifications exist,
-# and keep the local file otherwise.
+# Force dpkg to automatically accept new config files
 APT_OPTIONS=(
     "-yq"
-    "-o Dpkg::Options::=--force-confold"
+    "-o Dpkg::Options::=--force-confdef"
+    "-o Dpkg::Options::=--force-confnew"
 )
 
 #####################################
 # Update and Upgrade the System     #
 #####################################
-sudo apt-get update -q
-sudo apt-get upgrade "${APT_OPTIONS[@]}"
+#sudo apt-get update -q
+#sudo apt-get upgrade "${APT_OPTIONS[@]}"
 
 #####################################
 # Install Required Packages         #
 #####################################
 sudo apt-get install "${APT_OPTIONS[@]}" \
-    build-essential pkg-config libssl-dev git-all protobuf-compiler cargo screen unzip
+    screen unzip
+#build-essential pkg-config libssl-dev git-all protobuf-compiler cargo screen unzip
 
 #####################################
 # Install Rust Non-Interactively    #
@@ -41,7 +42,7 @@ echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
 # Update Rust to the latest stable
-rustup update
+#rustup update
 
 #####################################
 # Reconfigure Swap (16G)            #
