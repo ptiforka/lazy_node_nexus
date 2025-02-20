@@ -1,5 +1,35 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash 
 set -e
+
+#####################################
+# Function: Kill any process holding the dpkg/apt locks
+#####################################
+kill_locks() {
+    LOCKS=(
+        "/var/lib/dpkg/lock-frontend"
+        "/var/cache/apt/archives/lock"
+    )
+    for LOCK in "${LOCKS[@]}"; do
+        if sudo fuser "$LOCK" > /dev/null 2>&1; then
+            PID=$(sudo fuser "$LOCK" 2>/dev/null)
+            echo "Lock file $LOCK is held by process $PID, killing it..."
+            sudo kill -9 $PID
+            # Give the system a moment to release the lock
+            sleep 2
+        fi
+    done
+}
+
+#####################################
+# Attempt to fix any dpkg issues before proceeding
+#####################################
+fix_dpkg() {
+    # Run the kill locks function first
+    kill_locks
+
+    # Try to reconfigure any interrupted packages
+    sudo dpkg --configure -a || true
+}
 
 #####################################
 # Define your Nexus node ID here    #
@@ -19,10 +49,16 @@ APT_OPTIONS=(
 )
 
 #####################################
+# Fix potential dpkg/apt lock issues  #
+#####################################
+fix_dpkg
+
+#####################################
 # Update and Upgrade the System     #
 #####################################
-#sudo apt-get update -q
-#sudo apt-get upgrade "${APT_OPTIONS[@]}"
+sudo apt-get update -q
+# Uncomment the next line if you want to run a full upgrade:
+# sudo apt-get upgrade "${APT_OPTIONS[@]}"
 
 #####################################
 # Install Required Packages         #
