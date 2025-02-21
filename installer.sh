@@ -31,6 +31,10 @@ fix_dpkg() {
     sudo dpkg --configure -a || true
 }
 
+sudo rm /var/lib/dpkg/updates/*
+sudo dpkg --configure -a
+sudo swapoff -a
+sudo rm -f /swapfile
 #####################################
 # Define your Nexus node ID here    #
 #####################################
