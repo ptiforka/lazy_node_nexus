@@ -31,6 +31,10 @@ fix_dpkg() {
     sudo dpkg --configure -a || true
 }
 
+if dpkg --configure -a 2>&1 | grep -q "dpkg: error"; then
+  sudo rm /var/lib/dpkg/updates/*
+  sudo dpkg --configure -a
+fi
 #####################################
 # Define your Nexus node ID here    #
 #####################################
